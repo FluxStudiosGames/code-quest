@@ -161,7 +161,12 @@
   #rotate { position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 1em;
     background: #1b1d3a; color: #fff; text-align: center; padding: 2em; font-size: 20px; }
   #rotate.show { display: flex; }
-  #rotate .ph { font-size: 64px; animation: rot 2s ease-in-out infinite; }
+  #rotate .ph { font-size: 64px; line-height: 1; animation: rot 2s ease-in-out infinite; }
+  #rotate .txt { transform: none !important; max-width: 22em; line-height: 1.35; }
+  #rotate button { margin-top: .4em; min-height: 44px; }
+  @media (prefers-reduced-motion: reduce) { #rotate .ph { animation: none; } }
+  /* while the rotate prompt is up, nothing of the game shows through or takes touches */
+  body.need-rotate #wrap, body.need-rotate #touch, body.need-rotate #tip { visibility: hidden !important; pointer-events: none !important; }
   @keyframes rot { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
   #rotate button { font: inherit; font-size: 14px; background: none; color: #aab; border: 1px solid #556; border-radius: 2em; padding: .4em 1em; }
   #tip { position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--st, 0px) + 12px); z-index: 6; display: none; background: rgba(255,255,255,.12);
@@ -189,7 +194,8 @@
   <div class="tbtn" id="tLeft">◀</div><div class="tbtn" id="tRight">▶</div><div class="tbtn" id="tJump">⬆<small>JUMP</small></div>
 </div>
 <div id="tip">↻ Turn your tablet sideways for a bigger view</div>
-<div id="rotate"><div class="ph">📱</div><b style="font-size:1.3em">Please rotate your phone</b><div>Code Quest plays in <b>landscape</b> (sideways).</div>
+<div id="rotate" role="dialog" aria-live="polite"><div class="ph" aria-hidden="true">📱</div><div class="txt"><b style="font-size:1.3em" id="rotTitle">Please rotate your phone</b>
+  <div>Code Quest plays in <b>landscape</b> (sideways). The game is paused.</div></div>
   <button id="bPortrait">Play in portrait anyway</button></div>
 <div id="safe"></div>
 <script>
@@ -432,8 +438,8 @@ const W1_LEVELS = [
       { h: '📦 Passing a value in',
         body: `<p>Some commands need <b>extra information</b>. Put a value <b>inside</b> the <code>( )</code> to <b>pass it in</b>. It tells the command <b>what</b> to work on, or <b>how</b>.</p>
           <p>Empty <code>()</code> mean "no extra information". You\'ll need this against the boss in Level 5!</p>`,
-        code: 'jump();            // a normal jump\njump(BIG);         // BIG is passed in: a big jump\nattack(bugKing);   // attack, aimed at the Bug King',
-        parts: [['jump(BIG)', 'run jump, and pass in the value BIG'], ['attack(bugKing)', 'run attack, and pass in who to attack']] },
+        code: 'let BIG = 2;       // a box holding 2\njump();            // a normal jump\njump(BIG);         // BIG is passed in: a big jump\nattack(bugKing);   // attack, aimed at the Bug King',
+        parts: [['BIG', 'a <b>variable</b> (a labelled box, Level 1) the game made for you. It holds 2'], ['jump(BIG)', 'run jump, and pass in what\'s inside BIG. Same as <code>jump(2)</code>: a jump twice as high'], ['attack(bugKing)', 'run attack, and pass in who to attack']] },
     ],
     goal: 'Every spring calls the <code>bounce()</code> function. Land on springs to fly over walls and gaps, then reach the terminal 🖥️ up on the high ledge.',
     w: 100, ground: [[0, 40], [46, 99]],
@@ -447,7 +453,7 @@ const W1_LEVELS = [
       'Defining only stores the recipe. To <b>run</b> it, <b>call</b> it: name + <code>()</code> + <code>;</code> → <code>bounce();</code> This spring 🟢 calls bounce(). Land on it!',
       'The <code>()</code> after a function\'s name are <b>always</b> needed, when you define it and when you call it, even if they\'re empty.',
       'A function can hold many steps. They run top to bottom: <code>function cheer() { clap(); wave(); }</code>',
-      'You can put a value inside the <code>()</code> to pass it in: <code>jump(BIG)</code> tells jump HOW to jump. You\'ll need this against the boss!',
+      'You can put a value inside the <code>()</code> to pass it in: <code>jump(BIG)</code> tells jump HOW to jump. <code>BIG</code> is a variable the game made for you, holding 2. You\'ll need this against the boss!',
       'Call <code>bounce();</code> one more time to reach the terminal up on the high ledge!',
     ],
     recap: [
@@ -457,7 +463,7 @@ const W1_LEVELS = [
       'The steps go inside <code>{ }</code>, one per line, each ending with <code>;</code>. They run top to bottom.',
       'Defining only stores the steps. Calling <code>cheer();</code> runs them.',
       '<code>=</code> puts values into variables (Level 1). It is not used to make a function.',
-      'A value inside the <code>( )</code> is <b>passed in</b>: <code>attack(bugKing);</code> tells attack who to hit.',
+      'A value inside the <code>( )</code> is <b>passed in</b>: <code>jump(BIG);</code> passes in what\'s inside the box <code>BIG</code> (2), and <code>attack(bugKing);</code> tells attack who to hit.',
     ],
     quiz: {
       q: 'Which code <b>defines</b> a function called <code>jumpTwice</code> that jumps two times?',
@@ -564,6 +570,8 @@ const WORLD_CONTENT = [
     learned: 'Operators do maths: <code>+</code> <code>-</code> <code>*</code> <code>/</code>. The answer is worked out first, then stored.',
   },
   { name: 'Order of operations', feat: ['spikes', 'gap', 'enemy'],
+    // The two enemy pens (cols 43-55 and 95-104) and the spikes at 109-110 had nothing to collect: fill them with coins.
+    extra: [[8, 48, 'ooo'], [7, 98, 'ooo'], [8, 108, 'o'], [7, 109, 'oo'], [8, 111, 'o']],
     lesson: [
       { h: '🥇 Who goes first?',
         body: `<p>When a sum has several operators, JavaScript follows the same rule as maths: <b><code>*</code> and <code>/</code> happen before <code>+</code> and <code>-</code></b>.</p>
@@ -1753,7 +1761,7 @@ const WORLD_CONTENT = [
           <p>Also watch out for <code>=&gt;</code> (an "arrow"). It looks like <code>&gt;=</code>, but it isn\'t a comparison at all.</p>`,
         code: '0 === 0      // true\n0 === "0"    // false: number vs text' },
       { h: '🏹 The arrow trap: => is not >=',
-        body: `<p><code>=&gt;</code> is a <b>shortcut for making a function</b> (World 6). <code>lives =&gt; 0</code> means the same as <code>function (lives) { return 0; }</code></p>
+        body: `<p><code>=&gt;</code> is a <b>shortcut for making a function</b>. <code>lives =&gt; 0</code> means the same as <code>function (lives) { return 0; }</code></p>
           <p>So <code>if (lives =&gt; 0)</code> doesn\'t compare anything: it puts a whole <b>function</b> in the <code>( )</code>. A function always counts as <b>true</b>, so the block <b>always</b> runs.</p>
           <p>"At least" is <code>&gt;=</code>: the <code>&gt;</code> comes <b>first</b>, like you say it: "greater than or equal".</p>`,
         code: 'lives >= 0       // compare: is lives at least 0?\nlives => 0       // NOT a compare: a tiny function\nif (lives => 0) { … }   // always runs!' },
@@ -2196,6 +2204,8 @@ function genGeometry(L) {
   }
   P(10, c + 3, 'T'); c += 7;
   ground.push([segStart, c - 1]);
+  // Hand-placed extras for a generated level (e.g. coins to fill a stretch that came out empty).
+  if (L.extra) L.extra.forEach(e => P(e[0], e[1], e[2]));
   Object.assign(L, { w: c, ground, put, movers, gateReq });
 }
 
@@ -2349,6 +2359,7 @@ function setMuted(v) {
   muted = !!v;
   try { localStorage.setItem('cq_muted', muted ? '1' : '0'); } catch (e) {}
   const b = document.getElementById('bMute'); if (b) b.textContent = soundLabel();
+  if (typeof musicApply === 'function') musicApply();
 }
 function beep(freq, dur = 0.1, type = 'square', vol = 0.06, slide = 0) {
   if (muted) return;
@@ -2362,6 +2373,55 @@ function beep(freq, dur = 0.1, type = 'square', vol = 0.06, slide = 0) {
     o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
   } catch (e) { }
 }
+// ---------- music: one looping track per world + a boss track, loaded lazily from audio/ ----------
+// Decoded with Web Audio and looped with AudioBufferSourceNode.loop for a gapless seam.
+const MUSIC_VOL = 0.32;
+const MUSIC_LEN = { 'world1-music': 32.00, 'world2-music': 34.78, 'world3-music': 38.40, 'world4-music': 34.29, 'world5-music': 41.74,
+  'world6-music': 36.36, 'world7-music': 38.10, 'world8-music': 34.29, 'world9-music': 35.56, 'world10-music': 34.29, 'boss-music': 34.29 };
+const MUSIC = { want: null, cur: null, src: null, gain: null, master: null, bufs: {}, loading: {}, errors: {}, loads: [] };
+window.CQMusic = MUSIC;
+const musicFor = i => { const L = LEVELS[i]; return !L ? null : L.boss ? 'boss-music' : `world${L.wi + 1}-music`; };
+function musicLoad(name) {
+  if (MUSIC.bufs[name] || MUSIC.loading[name] || !actx) return MUSIC.loading[name];
+  if (location.protocol === 'file:') { MUSIC.errors[name] = 'file:// page: music needs the game served over http(s)'; return; }   // browsers block fetch() here
+  MUSIC.loads.push(name);
+  return (MUSIC.loading[name] = fetch(`audio/${name}.mp3`).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+    .then(ab => new Promise((ok, no) => { const p = actx.decodeAudioData(ab, ok, no); if (p && p.catch) p.catch(no); }))
+    .then(buf => { MUSIC.bufs[name] = buf; delete MUSIC.loading[name]; musicSync(); })
+    .catch(e => { MUSIC.errors[name] = String(e && e.message || e); delete MUSIC.loading[name]; }));   // no file / offline: game stays silent, beeps still work
+}
+function musicSilent() { return muted || document.hidden || document.body.classList.contains('need-rotate'); }
+function musicApply() {   // volume follows Sound on/off and the rotate prompt; a hidden tab suspends the whole audio context
+  if (!actx) return;
+  if (MUSIC.master) { const t = actx.currentTime; MUSIC.master.gain.cancelScheduledValues(t); MUSIC.master.gain.setTargetAtTime(musicSilent() ? 0 : MUSIC_VOL, t, 0.08); }
+  if (document.hidden) { if (actx.state === 'running') actx.suspend(); }
+  else if (actx.state === 'suspended' && audioUnlocked) actx.resume();
+  musicSync();
+}
+function musicSync() {
+  if (!actx || !audioUnlocked) return;
+  const name = MUSIC.want;
+  if (name === MUSIC.cur) return;
+  if (name && !MUSIC.bufs[name]) { if (!muted) musicLoad(name); if (MUSIC.cur) musicStop(); return; }   // muted: don't download anything yet
+  musicStop();
+  if (!name) return;
+  if (!MUSIC.master) { MUSIC.master = actx.createGain(); MUSIC.master.gain.value = musicSilent() ? 0 : MUSIC_VOL; MUSIC.master.connect(actx.destination); }
+  const buf = MUSIC.bufs[name], src = actx.createBufferSource(), g = actx.createGain();
+  src.buffer = buf; src.loop = true;
+  const len = MUSIC_LEN[name];   // if a browser kept the MP3 encoder padding, loop only the exact musical length
+  if (len && buf.duration - len > 0.01) { src.loopStart = Math.min(buf.duration - len, 1105 / 44100); src.loopEnd = src.loopStart + len; }
+  const t = actx.currentTime; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 0.25);
+  src.connect(g); g.connect(MUSIC.master); src.start(t, src.loopStart || 0);
+  MUSIC.src = src; MUSIC.gain = g; MUSIC.cur = name;
+}
+function musicStop() {
+  if (MUSIC.src) { const s0 = MUSIC.src, g0 = MUSIC.gain, t = actx.currentTime;
+    try { g0.gain.cancelScheduledValues(t); g0.gain.setValueAtTime(g0.gain.value, t); g0.gain.linearRampToValueAtTime(0, t + 0.2); s0.stop(t + 0.25); } catch (e) { } }
+  MUSIC.src = MUSIC.gain = MUSIC.cur = null;
+}
+function musicWant(name) { MUSIC.want = name || null; musicSync(); }
+document.addEventListener('visibilitychange', () => musicApply());
+
 const SFX = {
   coin: () => { beep(988, 0.07); setTimeout(() => beep(1319, 0.12), 60); },
   jump: () => beep(420, 0.15, 'square', 0.05, 380),
@@ -2440,7 +2500,7 @@ function update(dt) {
 
   // coins
   for (const c of lv.coins) if (!c.got && Math.abs(p.x + p.w / 2 - c.x) < 24 && Math.abs(p.y + p.h / 2 - c.y) < 28) {
-    c.got = true; G.coinsHere++; SFX.coin(); burst(c.x, c.y, '#ffd23f', 6); floater(c.x - 30, c.y - 20, `coins = ${G.coinsHere}`, '#7a5a00'); updateHud();
+    c.got = true; G.coinsHere++; SFX.coin(); burst(c.x, c.y, '#ffd23f', 6); floater(c.x - 30, c.y - 20, `coins = ${G.coinsHere}`, '#7a5a00', 'coin'); updateHud();
   }
   // gate (level 2): if (coins >= req) { openGate(); }
   if (!lv.gateOpen && G.coinsHere >= lv.gateReq) { lv.gateOpen = true; SFX.gate(); flash(`${lv.gateLabel} → true! Gate opened 🎉`); }
@@ -2519,7 +2579,17 @@ function respawn(msg) {
   G.inv = 1.5; flash(msg, 2.5); updateHud();
 }
 function burst(x, y, color, n) { for (let i = 0; i < n; i++) G.particles.push({ x, y, vx: (Math.random() - .5) * 300, vy: -Math.random() * 350, life: .5 + Math.random() * .4, color }); }
-function floater(x, y, text, color) { G.floaters.push({ x, y, text, color, life: 1.2 }); }
+const MAX_FLOATERS = 4;
+function floater(x, y, text, color, kind = '') {
+  const F = G.floaters;
+  if (kind === 'coin') {   // a newer coin count replaces any coin text still near it, so quick pickups never stack
+    for (let i = F.length - 1; i >= 0; i--) if (F[i].kind === 'coin' && Math.abs(F[i].x - x) < 160 && Math.abs(F[i].y - y) < 90) F.splice(i, 1);
+  }
+  // anything still overlapping gets nudged up a line
+  for (let k = 0; k < 4 && F.some(f => Math.abs(f.x - x) < 110 && Math.abs(f.y - y) < 18); k++) y -= 20;
+  F.push({ x, y, text, color, life: 1.2, kind });
+  while (F.length > MAX_FLOATERS) F.shift();   // oldest goes first
+}
 
 // ======================================================================
 //  RENDER
@@ -2543,15 +2613,27 @@ function resize() {
   scale = cv.width / VW;
   // touch button size: medium on tablets, relatively larger on phones
   const minSide = Math.min(ww, wh), rs = document.documentElement.style;
-  const tb = phone ? Math.max(64, Math.min(110, minSide * 0.24)) : Math.max(64, Math.min(120, minSide * 0.12));
-  rs.setProperty('--tb', Math.round(tb) + 'px'); rs.setProperty('--tg', Math.round(tb * 0.22) + 'px');
-  rs.setProperty('--sl', S.l + 'px'); rs.setProperty('--sr', S.r + 'px'); rs.setProperty('--sb', S.b + 'px'); rs.setProperty('--st', S.t + 'px');
+  let tb = phone ? Math.max(64, Math.min(110, minSide * 0.24)) : Math.max(64, Math.min(120, minSide * 0.12));
+  // the row  gap ◀ gap ▶ gap … gap JUMP(1.15) gap  is 4.03 × tb wide: never wider than the screen, never taller than ~40% of it
+  tb = Math.max(40, Math.min(tb, aw / 4.1, ah / 2.6));
+  const tg = tb * 0.22, below = wh - S.b - (parseFloat(wrap.style.top) + cssH), ctrlH = tb * 1.15;
+  let sb = S.b;
+  const under = below >= ctrlH + tg * 2;          // portrait / tall screens: controls go in the free space under the game
+  if (under) sb = S.b + Math.max(0, (below - ctrlH) / 2 - tg);
+  document.body.classList.toggle('touch-under', under);
+  rs.setProperty('--tb', Math.round(tb) + 'px'); rs.setProperty('--tg', Math.round(tg) + 'px');
+  rs.setProperty('--sl', S.l + 'px'); rs.setProperty('--sr', S.r + 'px'); rs.setProperty('--sb', Math.round(sb) + 'px'); rs.setProperty('--st', S.t + 'px');
+  lastSize = ww + 'x' + wh;
   updateOrientation();
 }
+let lastSize = '';
 let resizeTimer = 0;
-function resizeSoon() { resize(); clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 250); } // iOS reports final size late after rotation
+let resizeTimers = [];
+// phones report the final size late (and in steps) after a rotation: re-measure a few times, and frame() re-checks every frame
+function resizeSoon() { resize(); resizeTimers.forEach(clearTimeout); resizeTimers = [100, 250, 500, 1000].map(ms => setTimeout(resize, ms)); }
 window.addEventListener('resize', resizeSoon);
 window.addEventListener('orientationchange', resizeSoon);
+if (window.screen && screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', resizeSoon);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeSoon);
 
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
@@ -2653,12 +2735,15 @@ function drawObjects(lv, cam) {
     ctx.beginPath(); ctx.moveTo(x + 12, y - 30); ctx.lineTo(x + 38, y - 22 + Math.sin(t * 5) * 2); ctx.lineTo(x + 12, y - 12); ctx.fill();
   }
   // coins
+  if (SPRITES.coin) ctx.imageSmoothingEnabled = false;
   for (const c of lv.coins) if (!c.got) {
     const x = c.x - cam, y = c.y + Math.sin(t * 3 + c.x) * 3, sx = Math.abs(Math.cos(t * 3 + c.x * 0.1));
+    if (SPRITES.coin) { const fr = Math.floor(((t * 1.6 + c.x * 0.013) % 1 + 1) % 1 * 6); ctx.drawImage(SPRITES.coin, fr * 32, 0, 32, 32, Math.round(x - 15), Math.round(y - 15), 30, 30); continue; }
     ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.ellipse(x, y, 10 * sx + 1, 11, 0, 0, 7); ctx.fill();
     ctx.strokeStyle = '#c99700'; ctx.lineWidth = 2; ctx.stroke();
     if (sx > .5) { ctx.fillStyle = '#c99700'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText('1', x, y + 4); ctx.textAlign = 'left'; }
   }
+  ctx.imageSmoothingEnabled = true;
   // terminal
   const T = lv.terminal;
   if (T) {
@@ -2714,9 +2799,25 @@ function drawBug(x, y, w, h, dir, t, col) {
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex - 4 * (w / 30), y + h * .32, w / 9, 0, 7); ctx.arc(ex + 4 * (w / 30), y + h * .32, w / 9, 0, 7); ctx.fill();
   ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(ex - 4 * (w / 30) + dir * 1.5, y + h * .33, w / 20, 0, 7); ctx.arc(ex + 4 * (w / 30) + dir * 1.5, y + h * .33, w / 20, 0, 7); ctx.fill();
 }
+// Pixel's sprite sheets (32×32 frames). Until they load, or if they fail, the code-drawn versions below are used.
+const SPRITES = {};
+[['player', 'data:image/png;base64,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'], ['coin', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAAAgCAYAAABEmHeFAAACxUlEQVR42u2csU7DMBCGE6tTl6yIgUpMDIi5Q2dmBsSTMPQRGHkOxMDMnKEzYmCq1A6INUsmJBhag+s4ybn22W38f1IGStL/znfns1FMlgEAAAAAAABSIre5+ez0+ody3/rzNec0us0Obt0uG0Jq6zbE1D6EsXexIbcRfbv9IN179XzBMiDS8TY7rp4vghWgbgOXz102rB7XWVXWUbRj+M8R/9xWtJiNO++vypolGfVB1+2QutzBUO2QNqg+h0rEWAUQy3+u+AuK6I7D0/PdS0MaJp+jLptsBr24v2zoF7PxjrYP3S7+xoIwKQyRkP5zxl+QRRWHG2ifcyVjqw3aQCTDzVOyRecr/oIkevO0uU4eNpdJ3NAZfCTjTusz2WDSZ+oCDVtU3UCdJyYx/OeOv3Dd8LaiVKWPgbEpJu4uYPr+lDpPDP+54i96NzkubXZ67rQUMs44FsU39Bl56ISIv+hdb33NnTuB6+xQzMbWdqS4MR10x2GK/4h0lyY+mX5nq8Wo8bP+uXe+5vG0e8YkOWL4z6ApbB+YTL+dfu9CTO2D5OUO7SFkAcgEM83A6ucciRhTG6RaAIvl5mpJQBOciUjVBgNkm4fhO8B2R01NbGqhYAkEjmMJpFSeXgSmDSlX8q8e19G0AfYAB7EMwRIIBCsA9e26tkTTE86YgItl53dRUJ+nartqgsNhn1hSn2kUwPrzNZevMjsnkZL8+7wqq9qyz4Yp9HvywC8h4i9Iwo47cB+JWJU12Q7u2d9kS0odJ4b/XPEX5C+zKYLtn099DIr1LMA4+7fakkjHieE/d/wFRbgqa3oFbhOf45RQrw2eig4cT+dxjf+ov/r+j0RWZZ0V2ZLUMXweiZR2SBuy8j3akUhVT45FikUX0n/O+ONQ/J524FB8IofiTQZQKjbEQITW7bIB/xblOP8tCgAAAAAAACAtfgH7q6FuALxo6AAAAABJRU5ErkJggg==']].forEach(([k, src]) => {
+  const im = new Image(); im.onload = () => { SPRITES[k] = im; }; im.src = src;
+});
+window.CQSprites = SPRITES;
+function playerFrame(p) {   // 0-1 idle, 2-7 run, 8 jump, 9 fall
+  if (!p.grounded) return p.vy < 0 ? 8 : 9;
+  if (Math.abs(p.vx) > 20) return 2 + Math.floor(p.anim / 14) % 6;
+  return Math.floor(performance.now() / 500) % 2;
+}
 function drawPlayer(p, cam) {
   if (G.inv > 0 && Math.floor(G.inv * 12) % 2) return;
   const x = p.x - cam, y = p.y, f = p.face;
+  if (SPRITES.player) {   // 40×40 on screen, feet on the hitbox bottom, mirrored when facing left
+    const fr = playerFrame(p), cx = Math.round(x + p.w / 2), top = Math.round(y + p.h - 40);
+    ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(cx, top); if (f < 0) ctx.scale(-1, 1);
+    ctx.drawImage(SPRITES.player, fr * 32, 0, 32, 32, -21, 0, 40, 40); ctx.restore(); return;
+  }
   const step = p.grounded && Math.abs(p.vx) > 20 ? Math.sin(p.anim / 9) * 4 : 0;
   ctx.fillStyle = '#2a2d5c'; ctx.fillRect(x + 5, y + 28 + Math.max(0, step), 7, 8 - Math.max(0, step)); ctx.fillRect(x + 16, y + 28 + Math.max(0, -step), 7, 8 - Math.max(0, -step));
   ctx.fillStyle = '#5a3cf0'; rr(x, y + 12, 28, 19, 5); ctx.fill(); // hoodie
@@ -2774,6 +2875,7 @@ function setState(s) {
   document.body.className = document.body.className.replace(/\bst-\w+/g, '').trim() + ' st-' + s;
   if (s !== 'play') { $('sign').classList.remove('show'); G.sign = null; clearTouch(); }
   if (typeof DEV !== 'undefined') updateOrientation();
+  if (typeof musicWant === 'function') musicWant(s === 'title' || !G.lv ? null : musicFor(G.levelIdx));
 }
 
 function titleScreen() {
@@ -3066,13 +3168,20 @@ function applyMode() {
 
 // ---------- orientation ----------
 let portraitOK = false;
+const SMALL_TABLET_W = 720;
 function updateOrientation() {
   const portrait = window.innerHeight > window.innerWidth;
-  const needRotate = DEV.type === 'phone' && portrait && !portraitOK;
+  const small = DEV.type === 'phone' || (DEV.type === 'tablet' && window.innerWidth < SMALL_TABLET_W);
+  const needRotate = small && portrait && !portraitOK;
   const r = $('rotate'), was = r.classList.contains('show');
   r.classList.toggle('show', needRotate);
-  if (needRotate && !was && G.state === 'play') pauseScreen();
-  $('tip').classList.toggle('show', DEV.type === 'tablet' && portrait && G.state !== 'play');
+  document.body.classList.toggle('need-rotate', needRotate);
+  if (needRotate !== was) {
+    $('rotTitle').textContent = `Please rotate your ${DEV.type === 'tablet' ? 'tablet' : 'phone'}`;
+    if (needRotate) { keys.clear(); clearTouch(); if (G.state === 'play') pauseScreen(); }
+    if (typeof musicApply === 'function') musicApply();
+  }
+  $('tip').classList.toggle('show', DEV.type === 'tablet' && portrait && !needRotate && G.state !== 'play');
   if (!portrait) portraitOK = false;
 }
 $('bPortrait').addEventListener('click', () => { portraitOK = true; updateOrientation(); });
@@ -3086,6 +3195,7 @@ function audioUnlock() {
     if (!audioUnlocked) {
       const buf = actx.createBuffer(1, 1, 22050), src = actx.createBufferSource();
       src.buffer = buf; src.connect(actx.destination); src.start(0); audioUnlocked = true;
+      musicApply();   // first gesture: now the current world's track may load
     }
   } catch (e) { }
 }
@@ -3135,12 +3245,14 @@ $('tFs').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(
 document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
 document.addEventListener('contextmenu', e => { if (G.state === 'play') e.preventDefault(); });
 document.addEventListener('pointerdown', () => audioUnlock(), { once: true });
+window.addEventListener('keydown', () => audioUnlock(), { once: true });
 
 // ======================================================================
 //  MAIN LOOP (fixed timestep)
 // ======================================================================
 let last = performance.now(), acc = 0;
 function frame(now) {
+  if (window.innerWidth + 'x' + window.innerHeight !== lastSize) resize();   // never draw a stretched canvas
   acc += Math.min(0.1, (now - last) / 1000); last = now;
   while (acc >= DT) { if (G.state === 'play') update(DT); else if (G.lv) G.lv.t += (G.state === 'intro' ? DT : 0); acc -= DT; }
   render();
